@@ -28,15 +28,11 @@
     <script>
         var user = "Гость";
 
-        // НАСТРОЙКА БАЗЫ ДАННЫХ SUPABASE (Вставь свои ключи сюда)
-        var SUPABASE_URL = "https://wvgohdrjbitwdbpbzdxf.supabase.co/rest/v1/";
-        var SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2Z29oZHJqYml0d2RicGJ6ZHhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4NzA0NjQsImV4cCI6MjEwMjQ0NjQ2NH0.1mEAnwA_z5yj91QqaTwmNvFUwQ9Hb0XPOU9lfW4SvS0";
-
         window.onload = function() {
             var savedUser = localStorage.getItem('neodit_user');
             if (savedUser) { user = savedUser; }
             updateHeader();
-            loadPostsFromServer();
+            renderFeed();
         };
 
         function updateHeader() {
@@ -54,29 +50,17 @@
         }
 
         function login(reg) {
-            var nameField = document.getElementById('u');
-            var passField = document.getElementById('p');
-            
-            if(!nameField || !passField) {
-                alert("Ошибка: Поля ввода не найдены на странице!");
-                return;
-            }
-
-            var n = nameField.value.trim();
-            var p = passField.value.trim();
-            
-            if(!n || !p) {
-                alert("Введите ник и пароль!");
-                return;
-            }
+            var n = document.getElementById('u').value.trim();
+            var p = document.getElementById('p').value.trim();
+            if(!n || !p) return alert("Введите ник и пароль!");
             
             user = n;
             localStorage.setItem('neodit_user', user);
             updateHeader();
             
-            alert(reg ? "Аккаунт создан!" : "Вы успешно вошли!");
+            alert(reg ? "Аккаунт создан!" : "Вы вошли!");
             tab('t-feed', document.getElementById('b-feed'));
-            loadPostsFromServer();
+            renderFeed();
         }
 
         function vote(id, btn) {
@@ -85,35 +69,25 @@
             else e.innerText = v - 1;
         }
 
-        function loadPostsFromServer() {
-            if(SUPABASE_URL.indexOf("ВСТАВЬ_СЮДА") !== -1) return; // Не шлем запросы, если ключи не вставлены
-            
-            var xhr = new XMLHttpRequest();
-            xhr.open("GET", SUPABASE_URL + "/rest/v1/posts?select=*&order=id.desc", true);
-            xhr.setRequestHeader("apikey", SUPABASE_KEY);
-            xhr.setRequestHeader("Authorization", "Bearer " + SUPABASE_KEY);
-            
-            xhr.onload = function() {
-                if (xhr.status === 200) {
-                    var posts = JSON.parse(xhr.responseText);
-                    renderFeed(posts);
-                }
-            };
-            xhr.send();
+        function getPosts() {
+            var posts = localStorage.getItem('neodit_posts');
+            return posts ? JSON.parse(posts) : [];
         }
 
-        function renderFeed(posts) {
+        function renderFeed() {
             var feedElem = document.getElementById('feed');
-            if (!posts || posts.length === 0) {
-                feedElem.innerHTML = '<div id="empty-msg" class="empty-msg">Здесь пока ничего нет. Создайте первый пост для всех!</div>';
+            var posts = getPosts();
+            
+            if (posts.length === 0) {
+                feedElem.innerHTML = '<div id="empty-msg" class="empty-msg">Лента пуста. Создайте первый пост на вкладке сверху!</div>';
                 return;
             }
 
             var html = "";
-            for (var i = 0; i < posts.length; i++) {
+            for (var i = posts.length - 1; i >= 0; i--) {
                 var p = posts[i];
                 var isAuthorOrMe = (p.author === user || user === "giga50📱");
-                var deleteButton = isAuthorOrMe ? '<button class="del-btn" onclick="deletePostFromServer(' + p.id + ')">Удалить</button>' : '';
+                var deleteButton = isAuthorOrMe ? '<button class="del-btn" onclick="deletePost(' + p.id + ')">Удалить</button>' : '';
                 var roleText = (p.author === "giga50📱") ? "Создатель: u/" : "u/";
 
                 html += [
@@ -134,39 +108,24 @@
             var t = document.getElementById('p_t').value.trim(), c = document.getElementById('p_c').value.trim();
             if(!t || !c) return alert("Заполните поля!");
             
-            if(SUPABASE_URL.indexOf("ВСТАВЬ_СЮДА") !== -1) {
-                alert("Ошибка: Сначала нужно подключить базу данных Supabase в коде!");
-                return;
-            }
+            var posts = getPosts();
+            var newPost = { id: Date.now(), title: t, content: c, author: user };
+            posts.push(newPost);
+            localStorage.setItem('neodit_posts', JSON.stringify(posts));
 
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", SUPABASE_URL + "/rest/v1/posts", true);
-            xhr.setRequestHeader("apikey", SUPABASE_KEY);
-            xhr.setRequestHeader("Authorization", "Bearer " + SUPABASE_KEY);
-            xhr.setRequestHeader("Content-Type", "application/json");
-
-            var data = JSON.stringify({ title: t, content: c, author: user });
-
-            xhr.onload = function() {
-                document.getElementById('p_t').value = "";
-                document.getElementById('p_c').value = "";
-                tab('t-feed', document.getElementById('b-feed'));
-                loadPostsFromServer();
-            };
-            xhr.send(data);
+            document.getElementById('p_t').value = "";
+            document.getElementById('p_c').value = "";
+            
+            tab('t-feed', document.getElementById('b-feed'));
+            renderFeed();
         }
 
-        function deletePostFromServer(id) {
-            if(!confirm("Удалить этот пост?")) return;
-            var xhr = new XMLHttpRequest();
-            xhr.open("DELETE", SUPABASE_URL + "/rest/v1/posts?id=eq." + id, true);
-            xhr.setRequestHeader("apikey", SUPABASE_KEY);
-            xhr.setRequestHeader("Authorization", "Bearer " + SUPABASE_KEY);
-            
-            xhr.onload = function() {
-                loadPostsFromServer();
-            };
-            xhr.send();
+        function deletePost(id) {
+            if(!confirm("Удалить?")) return;
+            var posts = getPosts();
+            posts = posts.filter(function(p) { return p.id !== id; });
+            localStorage.setItem('neodit_posts', JSON.stringify(posts));
+            renderFeed();
         }
 
         function comm(id) {
@@ -182,24 +141,19 @@
 
     <header>neodit <span id="status">u/Гость</span></header>
 
-    <!-- Вкладка Ленты -->
     <div id="t-feed" class="section active">
-        <h3>Лента мировых новостей</h3>
-        <input type="button" value="🔄 Обновить ленту" onclick="loadPostsFromServer()" style="background:#5cb85c; margin-bottom:10px;">
-        <div id="feed">
-            <div id="empty-msg" class="empty-msg">Здесь пока ничего нет. Подключите Supabase и создайте первый пост!</div>
-        </div>
+        <h3>Лента новостей</h3>
+        <input type="button" value="Обновить ленту" onclick="renderFeed()" style="background:#5cb85c; margin-bottom:10px; color:white;">
+        <div id="feed"></div>
     </div>
 
-    <!-- Вкладка Создания поста -->
     <div id="t-create" class="section">
         <h3>Создать пост</h3>
         <input type="text" id="p_t" placeholder="Заголовок">
         <textarea id="p_c" placeholder="Текст публикации" rows="4"></textarea>
-        <input type="button" value="Опубликовать для всех" onclick="post()">
+        <input type="button" value="Опубликовать" onclick="post()">
     </div>
 
-    <!-- Вкладка Профиля (Поля ввода на месте!) -->
     <div id="t-prof" class="section">
         <h3>Вход и Регистрация</h3>
         <label for="u">Имя пользователя:</label>
@@ -212,5 +166,12 @@
         <input type="button" value="Регистрация" onclick="login(true)" style="background:#555; margin-top:5px;">
     </div>
 
-    <!-- Панель навигации -->
     <div class="nav-bar">
+        <button id="b-feed" class="nav-item active" onclick="tab('t-feed', this)">ЛЕНТА</button>
+        <button class="nav-item" onclick="tab('t-create', this)">СОЗДАТЬ</button>
+        <button class="nav-item" onclick="tab('t-prof', this)">ПРОФИЛЬ</button>
+    </div>
+
+</body>
+</html>
+
