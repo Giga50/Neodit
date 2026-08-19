@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Neodit</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="topbar"><a class="brand" href="#"><span class="logo">N</span> Neodit</a><input id="search" class="search" placeholder="Поиск постов..."><div id="authArea"></div></header>
+<main class="layout"><section><div class="toolbar"><button class="sort active" data-sort="new">Новые</button><button class="sort" data-sort="top">Популярные</button><button class="sort" data-sort="old">Старые</button></div><div id="posts"></div></section><aside><button class="primary full" id="createBtn">+ Создать пост</button><div class="card"><h3>О Neodit</h3><p>Текстовые посты, комментарии и голосование.</p></div></aside></main>
+<div id="modal" class="modal hidden"><div class="modalbox"><button class="close" id="close">×</button><div id="modalContent"></div></div></div><div id="toast" class="toast"></div>
+<script type="module" src="app.js"></script></body></html>
